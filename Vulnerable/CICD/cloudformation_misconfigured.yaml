@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template with vulnerable S3 buckets and IAM configurations
+
+Resources:
+  SampleDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::AccountId}-insecure-data-bucket"
+      AccessControl: PublicRead
+
+  SampleUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::AccountId}-insecure-admin-user"
+
+  SampleAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref SampleUser
+
+  SampleUserPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: admin_policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "*"
+            Resource:
+              - "*"
+      Users:
+        - !Ref SampleUser
+
+Outputs:
+  BucketName:
+    Description: Name of the secure S3 bucket
+    Value: !Ref SampleDataBucket
+
+  IAMUserName:
+    Description: Name of the IAM user
+    Value: !Ref SampleUser

@@ -1,0 +1,62 @@
+
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID = 'AKIAEXAMPLE12345678'
+        AWS_SECRET_ACCESS_KEY = 'fakeSecretKeyForScannerTesting'
+        API_TOKEN = 'fake-api-token-12345'
+    }
+
+    parameters {
+        string(name: 'BUILD_TARGET', defaultValue: 'app')
+        string(name: 'BRANCH_NAME', defaultValue: 'main')
+    }
+
+    stages {
+        stage('Debug') {
+            steps {
+                echo "Using API token: ${API_TOKEN}"
+                sh 'printenv'
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                sh "git checkout ${params.BRANCH_NAME}"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    sh "echo Building target ${params.BUILD_TARGET}"
+
+
+                    def target = params.BUILD_TARGET
+                    sh "make ${target}"
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    withCredentials([
+                        string(
+                            credentialsId: 'deployment-api-token',
+                            variable: 'DEPLOY_TOKEN'
+                        )
+                    ]) {
+                        sh '''
+                            set +x
+                            curl --fail --silent --show-error \
+                                -H "Authorization: Bearer $DEPLOY_TOKEN" \
+                                https://example.invalid/deploy
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}

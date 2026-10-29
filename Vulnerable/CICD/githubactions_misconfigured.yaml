@@ -1,0 +1,28 @@
+name: Vulnerable PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-title:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title
+        run: |
+          
+          
+          
+          title="${{ github.event.pull_request.title }}"
+
+          if [[ $title =~ ^production ]]; then
+            echo "PR title starts with 'production'"
+            exit 0
+          else
+            echo "PR title did not start with 'production'"
+            exit 1
+          fi

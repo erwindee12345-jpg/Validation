@@ -1,0 +1,96 @@
+
+pipeline {
+    agent { label 'trusted-build-agent' }
+
+    parameters {
+  
+        choice(
+            name: 'BUILD_TARGET',
+            choices: ['app', 'test', 'docs'],
+            description: 'Select an approved build target'
+        )
+
+        string(
+            name: 'BRANCH_NAME',
+            defaultValue: 'main',
+            description: 'Branch to build'
+        )
+    }
+
+    stages {
+        stage('Validate Input') {
+            steps {
+                script {
+
+                    def branchPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/
+                    if (!(params.BRANCH_NAME ==~ branchPattern) ||
+                        params.BRANCH_NAME.startsWith('-') ||
+                        params.BRANCH_NAME.startsWith('/') ||
+                        params.BRANCH_NAME.endsWith('/') ||
+                        params.BRANCH_NAME.endsWith('.') ||
+                        params.BRANCH_NAME.contains('..') ||
+                        params.BRANCH_NAME.contains('//') ||
+                        params.BRANCH_NAME.contains('@') ||
+                        params.BRANCH_NAME.length() > 100) {
+                        error('Invalid branch name')
+                    }
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                
+                
+                sh(
+                    script: '''
+                        set -eu
+                        printf '%s' "$BRANCH_NAME" | grep -qE '^[A-Za-z0-9._/-]+$' || { echo 'Invalid branch'; exit 1; }
+                        git check-ref-format --branch -- "$BRANCH_NAME"
+                        git switch -- "$BRANCH_NAME"
+                    ''',
+                    env: ["BRANCH_NAME=${params.BRANCH_NAME.toString()}".toString()]
+                )
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    if (!['app', 'test', 'docs'].contains(params.BUILD_TARGET)) {
+                        error('Invalid build target')
+                    }
+                }
+                script {
+                    def safeBuildTarget = params.BUILD_TARGET
+                    if (!['app', 'test', 'docs'].contains(safeBuildTarget)) {
+                        error('Invalid build target')
+                    }
+                    sh(script: 'make "$BUILD_TARGET"', env: ["BUILD_TARGET=${safeBuildTarget}".toString()])
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    withCredentials([
+                        string(
+                            credentialsId: 'deployment-api-token',
+                            variable: 'DEPLOY_TOKEN'
+                        )
+                    ]) {
+                        sh '''
+                            set +x
+                            curl --fail --silent --show-error \
+                                --oauth2-bearer "$DEPLOY_TOKEN" \
+                                --max-time 30 \
+                                -o /dev/null \
+                                https://example.invalid/deploy
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}

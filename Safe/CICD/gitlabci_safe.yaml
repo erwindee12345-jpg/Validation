@@ -1,0 +1,39 @@
+deploy:
+  stage: deploy
+  environment:
+    name: production
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+      allow_failure: false
+  script:
+    - |
+      set -eu
+      set +x
+
+      [ -n "${DEPLOY_TOKEN:-}" ] || { echo "Deployment token is not configured"; exit 1; }
+
+      case "${DEPLOY_URL:-}" in
+        https://deploy.example.com/*) ;;
+        *) echo "ERROR: DEPLOY_URL is not on the allowlist (value redacted)"; exit 1 ;;
+      esac
+
+      
+      case "$DEPLOY_URL" in
+        *[!A-Za-z0-9._~:/?#@%+=\&-]*) echo "ERROR: DEPLOY_URL contains disallowed characters"; exit 1 ;;
+      esac
+      case "$DEPLOY_TOKEN" in
+        *[!A-Za-z0-9._~+/=-]*) echo "ERROR: DEPLOY_TOKEN contains unexpected characters"; exit 1 ;;
+      esac
+
+      umask 077
+      CURL_CFG="$(mktemp --tmpdir=/dev/shm 2>/dev/null || mktemp)"
+      trap 'command -v shred >/dev/null 2>&1 && shred -u "$CURL_CFG" || rm -f "$CURL_CFG"' EXIT
+      printf '%s\n%s\n' \
+        "url = \"${DEPLOY_URL}\"" \
+        "header = \"Authorization: Bearer ${DEPLOY_TOKEN}\"" > "$CURL_CFG"
+
+      curl --fail --silent --show-error \
+        --proto '=https' \
+        --proto-redir '=https' \
+        --config "$CURL_CFG"

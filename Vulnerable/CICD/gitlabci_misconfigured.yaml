@@ -1,0 +1,22 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  BUILD_TARGET: "app"
+
+build:
+  stage: build
+  script:
+
+    - eval "echo Building $BUILD_TARGET"
+
+
+    - echo "Deploy token: $DEPLOY_TOKEN"
+
+deploy:
+  stage: deploy
+  script:
+
+    - echo "Deploying application..."
+    - ./deploy.sh

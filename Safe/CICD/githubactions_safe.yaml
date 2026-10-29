@@ -1,0 +1,25 @@
+name: Safe PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-title:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title
+        env:
+          PR_TITLE_RAW: ${{ toJSON(github.event.pull_request.title) }}
+        run: |
+          PR_TITLE="$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")"
+          if [[ "$PR_TITLE" =~ ^production ]]; then
+            echo "PR title starts with 'production'"
+          else
+            echo "PR title did not start with 'production'"
+            exit 1
+          fi
